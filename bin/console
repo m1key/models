@@ -1,0 +1,75 @@
+#!/usr/bin/env ruby
+
+require 'bundler/setup'
+require 'models'
+require 'yaml'
+
+include Models
+
+# Config
+configuration = YAML.load_file(File.join(Dir.pwd, 'config.yaml'))
+host = configuration['host']
+url = configuration['url']
+form_id = configuration['form_id']
+all_basic_models_payload = configuration['all_basic_models']
+fetch_categories_payload = configuration['fetch_categories']
+fetch_complete_model_payload = configuration['fetch_complete_model']
+fetch_category_with_basic_models_payload = configuration['fetch_category_with_basic_models']
+fetch_price_for_configurations_payload = configuration['fetch_price_for_configurations']
+delivery_options = configuration['delivery_options']
+delivery_options_map = Hash.new
+delivery_options.each{|option| delivery_options_map[option['name']] = option['value']}
+quality_options = configuration['quality_options']
+quality_options_map = Hash.new
+quality_options.each{|option| quality_options_map[option['name']] = option['value']}
+duration_options = configuration['duration_options']
+duration_options_map = Hash.new
+duration_options.each{|option| duration_options_map[option['name']] = option['value']}
+
+# HTTP access and Neo4j access
+models_repo = ModelsRepo.new(host, url, form_id, all_basic_models_payload, fetch_categories_payload,
+                             fetch_complete_model_payload, fetch_category_with_basic_models_payload,
+                             fetch_price_for_configurations_payload)
+neo4j_access = Neo4jAccess.new(delivery_options_map, quality_options_map, duration_options_map)
+
+# # 1. Get all models basic info
+# models_repo.fetch_all_basic_models
+# models.each {|model| neo4j_access.save_basic_model(model)}
+
+# # 2. Get all categories and associated models
+# categories = models_repo.fetch_categories
+# categories.each {|category| neo4j_access.save_category_with_basic_models(models_repo.fetch_category_with_basic_models(category))}
+
+# 3. Save complete data for all models of a given category
+# categories = neo4j_access.get_categories_with_basic_models
+# category = categories[64]
+# puts category
+# category.models.each do |model|
+#   complete_model = models_repo.fetch_complete_model(model)
+#   neo4j_access.save_complete_model(complete_model)
+# end
+
+# # 4. Save complete data for all models
+# models = models_repo.fetch_all_basic_models
+# models.each do |model|
+#   complete_model = models_repo.fetch_complete_model(model)
+#   neo4j_access.save_complete_model(complete_model)
+# end
+
+categories = neo4j_access.get_categories_with_basic_models
+# category = categories[11]
+# category = categories[30]
+# category = categories[64]
+# category = categories[69]
+categories[44..categories.size].each do |category|
+  puts category.name
+  category.models.each do |model|
+    config = neo4j_access.get_highest_config(model, category)
+    if config == nil then next end
+
+    config.price = models_repo.fetch_price_for_configuration(config)
+    neo4j_access.save_config(config)
+  end
+end
+
+neo4j_access.close
