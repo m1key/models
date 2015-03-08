@@ -106,6 +106,52 @@ Largest difference between one category and other categories
 > WITH price1, price2, model, category1, category2
 > RETURN price1.amount, category1.name, price2.amount, collect(category2.name), (price1.amount - price2.amount) as difference, model.name ORDER BY difference DESC LIMIT 10
 
+Where given category is the most expensive
+
+> MATCH (price1:Price)-[:COSTS]-(product1:Product)-[:IS_BY]->(model:Model)
+> MATCH (product1)-[:IS_OF_CATEGORY]->(:ModelCategory)-[:DOES2]->(category1:Category {name: "..."})
+> MATCH (price2:Price)-[:COSTS]-(:Product)-[:IS_BY]->(model)
+> WITH price1, max(price2.amount) as max, min(price2.amount) as min, model, category1
+> WHERE (price1.amount = max) AND (price1.amount > min)
+> RETURN model.name
+
+For a given model, which product category is most expensive
+
+> MATCH (price1:Price)-[:COSTS]-(product1:Product)-[:IS_BY]->(model:Model {name: "..."} )
+> WITH max(price1.amount) as max, model
+> MATCH (product1:Product)-[:IS_BY]->(model)
+> MATCH (product1)-[:IS_OF_CATEGORY]->(:ModelCategory)-[:DOES2]->(category:Category)
+> MATCH (price1:Price)-[:COSTS]-(product1:Product)
+> WHERE price1.amount = max
+> RETURN category.name
+
+How often are product categories most expensive, and there are cheaper categories
+
+> MATCH (price1:Price)-[:COSTS]-(product1:Product)-[:IS_BY]->(model:Model)
+> WITH max(price1.amount) as max, min(price1.amount) as min, model
+> MATCH (product1:Product)-[:IS_BY]->(model)
+> MATCH (product1)-[:IS_OF_CATEGORY]->(:ModelCategory)-[:DOES2]->(category:Category)
+> MATCH (price1:Price)-[:COSTS]-(product1:Product)
+> WHERE price1.amount = max AND price1.amount > min
+> RETURN count(category.name) as count, category.name ORDER BY count DESC
+
+How often are product categories most expensive, and all other categories are cheaper
+
+> ?
+
+How often is given product categories most expensive, and all other categories are cheaper
+
+> MATCH (price1:Price)-[:COSTS]-(product1:Product)-[:IS_BY]->(model:Model)
+> MATCH (product1)-[:IS_OF_CATEGORY]->(:ModelCategory)-[:DOES2]->(category1:Category {name: "..."})
+> MATCH (price2:Price)-[:COSTS]-(:Product)-[:IS_BY]->(model)
+> WITH price1, max(price2.amount) as max, model
+> MATCH (price:Price {amount: max})-[:COSTS]-(product:Product)-[:IS_BY]->(model)
+> MATCH (price1)-[:COSTS]-(product)-[:IS_BY]->(model)
+> WITH count(price) as count, model
+> WHERE count = 1
+> RETURN model.name
+
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `bin/console` for an interactive prompt that will allow you to experiment.

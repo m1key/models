@@ -56,20 +56,24 @@ neo4j_access = Neo4jAccess.new(delivery_options_map, quality_options_map, durati
 #   neo4j_access.save_complete_model(complete_model)
 # end
 
-categories = neo4j_access.get_categories_with_basic_models
-# category = categories[11]
-# category = categories[30]
-# category = categories[64]
-# category = categories[69]
-categories[44..categories.size].each do |category|
-  puts category.name
-  category.models.each do |model|
-    config = neo4j_access.get_highest_config(model, category)
-    if config == nil then next end
+# categories = neo4j_access.get_categories_with_basic_models
+# # category = categories[11]
+# # category = categories[30]
+# # category = categories[64]
+# # category = categories[69]
+# categories[0 ..categories.size].each do |category|
+#   puts category.name
+#   category.models.each do |model|
+#     config = neo4j_access.get_highest_config(model, category)
+#     if config == nil then next end
+#
+#     config.price = models_repo.fetch_price_for_configuration(config)
+#     neo4j_access.save_config(config)
+#   end
+# end
 
-    config.price = models_repo.fetch_price_for_configuration(config)
-    neo4j_access.save_config(config)
-  end
+neo4j_access.get_categories_where_single_most_expensive.each do |result|
+  puts "#{result[1].name}: #{result[0]}"
 end
 
 neo4j_access.close

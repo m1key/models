@@ -62,7 +62,17 @@ module Models
       ' CREATE UNIQUE (product)-[:LASTS]->(duration)'\
       ' CREATE UNIQUE (product)-[:IS_OF_QUALITY]->(quality)'\
       ' CREATE UNIQUE (product)-[:COSTS]->(price)'\
-      ' RETURN product'\
+      ' RETURN product'
+
+    MODELS_WITH_THIS_CATEGORY_AS_SINGLE_MOST_EXPENSIVE = 'MATCH (price1:Price)-[:COSTS]-(product1:Product)-[:IS_BY]->(model:Model)'\
+      ' MATCH (product1)-[:IS_OF_CATEGORY]->(:ModelCategory)-[:DOES2]->(category1:Category {name: {category_name}})'\
+      ' MATCH (price2:Price)-[:COSTS]-(:Product)-[:IS_BY]->(model)'\
+      ' WITH price1, max(price2.amount) as max, model'\
+      ' MATCH (price:Price {amount: max})-[:COSTS]-(product:Product)-[:IS_BY]->(model)'\
+      ' MATCH (price1)-[:COSTS]-(product)-[:IS_BY]->(model)'\
+      ' WITH count(price) as count, model'\
+      ' WHERE count = 1'\
+      ' RETURN model.name as name, model.id as id'
 
     def initialize(delivery_options_map, quality_options_map, duration_options_map)
       puts 'Opening Neo4j session...'
@@ -155,6 +165,17 @@ module Models
 
       raise "Saved product key [#{product[:key]}] does not match expectations of key to save [#{product_key}]." unless product[:key] == product_key
       product
+    end
+
+    def get_categories_where_single_most_expensive
+      categories = Neo4j::Session.query(ALL_CATEGORIES).map{|category| Category.new(nil, category[:name]) }
+      categories.map{|category| [models_for_whom_single_most_expensive_category(category).size, category]}.sort_by{|result| result[0]}
+    end
+
+    def models_for_whom_single_most_expensive_category(category)
+      Neo4j::Session.query(MODELS_WITH_THIS_CATEGORY_AS_SINGLE_MOST_EXPENSIVE, category_name: category.name).map do |result|
+        Model.new(result[:id], result[:name])
+      end
     end
 
   end
